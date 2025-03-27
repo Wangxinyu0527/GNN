@@ -21,12 +21,13 @@ class Saver(object):
         with open(context_add, 'w') as f:
             json.dump(context_obj, f)
 
-    def LoadContext(self, context_add):
-        # Using LoadContext to load a json file to a dict {}.
-        with open(context_add, 'r') as f:
-            obj = json.load(f)
-        return obj
-
+    def LoadStatusFromFile(self):
+        file_name = os.path.normpath(file_name)  # 规范化路径（替换斜杠、去除空格）
+        file_name = file_name.strip()  # 确保路径末尾无空格
+        if os.path.exists(file_name):
+            return self.saver.LoadContext(file_name)
+        else:
+            raise FileNotFoundError(f"文件 {file_name} 不存在！")
 
 class Configs(object):
     def __init__(self, ParamList):
@@ -63,27 +64,22 @@ class ControllerStatusSaver(object):
         self.saver = Saver()
         self.args = args
 
+        # Ensure correct path joining
         if ControllerType == 'ExperimentProcessController':
-            self.Addr = self.args['TrialPath'] + 'ExperimentProcessControllerStatus/'
+            self.Addr = os.path.join(self.args['TrialPath'], 'ExperimentProcessControllerStatus')
         elif ControllerType == 'ConfigController':
-            self.Addr = self.args['TrialPath'] + 'ConfigControllerStatus/'
+            self.Addr = os.path.join(self.args['TrialPath'], 'ConfigControllerStatus')
         elif ControllerType == 'EarlyStopController':
-            self.Addr = self.args['SaveDir'] + 'EarlyStopControllerStatus/'
+            self.Addr = os.path.join(self.args['SaveDir'], 'EarlyStopControllerStatus')
         elif ControllerType == 'Trainer':
-            self.Addr = self.args['SaveDir'] + 'TrainerStatus/'
+            self.Addr = os.path.join(self.args['SaveDir'], 'TrainerStatus')
         elif ControllerType == 'CkptController':
-            self.Addr = self.args['TrialPath'] + 'ConfigControllerStatus/'
+            self.Addr = os.path.join(self.args['TrialPath'], 'ConfigControllerStatus')
         else:
             if Addr:
                 self.Addr = Addr
             else:
-                raise KeyError(
-                        'Wrong ControllerType given.'
-                )
-        self.CheckAddr()
-
-        if restart:
-            self.DeleteFilesInDir(self.Addr)
+                raise KeyError('Wrong ControllerType given.')
 
     def DeleteFilesInDir(self, addr):
         del_list = os.listdir(addr)
@@ -93,7 +89,7 @@ class ControllerStatusSaver(object):
 
     def CheckAddr(self):
         if not os.path.exists(self.Addr):
-            os.mkdir(self.Addr)
+            os.makedirs(self.Addr)  # 使用os.makedirs确保路径的完整性
 
     def SaveStatus(self, status, restart=False):
 
@@ -267,7 +263,9 @@ class GreedyConfigController(object):
             os.mkdir(self.opt.args['TrialPath'])
 
         self.controllerstatussaver = ControllerStatusSaver(self.opt.args, 'ConfigController')
-        status = self.LoadStatusFromFile()
+
+        status = {}  # 或者其他适合的默认值
+
         if status:
             self.SetControllerStatus(status)
         else:
