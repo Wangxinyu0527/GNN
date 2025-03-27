@@ -10,7 +10,7 @@ BasicParamList = {
     'ExpName': 'BBBP',
     'MainMetric': 'AUC',
     'DataPath': './Datasets/DrugData/BBBP_SMILESValue.txt',
-    'RootPath': '/remote-home/byzhao/Experiments/GSL-MPP/try/',
+    'RootPath': 'D:\\outputs\\',
     'CUDA_VISIBLE_DEVICES': '2',
     'TaskNum': 1,
     'ClassNum': 2,

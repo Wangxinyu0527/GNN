@@ -9,8 +9,6 @@ from TrainingFramework.Initializer import *
 
 import torch.optim as optim
 from Models.GslMol.molecule_gsl_model import MolRelationNet
-
-
 class Saver(object):
     # Module that package the saving functions
     def __init__(self):
