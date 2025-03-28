@@ -87,7 +87,8 @@ class ControllerStatusSaver(object):
                 self.Addr = Addr
             else:
                 raise KeyError('Wrong ControllerType given.')
-            # 最后统一创建目录（根据最终路径）
+            # 加了 os.makedirs(self.Addr, exist_ok=True)
+            # 并把 self.saver = Saver() 放在所有路径设置之后，确保路径是最终版本再创建
         os.makedirs(self.Addr, exist_ok=True)
         self.saver = Saver()
 
