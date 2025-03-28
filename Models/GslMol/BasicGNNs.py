@@ -15,7 +15,7 @@ class PyGGIN(nn.Module):
         self.num_layers = opt.args['GINLayers']
         # self.MLPChannels = opt.args['DNNLayers']
         self.MLPOutputSize = opt.args['OutputSize']
-        self.dropout = opt.args['DropRate']
+        self.dropout = float(opt.__dict__.get("DropRate", 0.0))  # 如果 opt 是个类对象
         self.FeatureExtractor = FeatureExtractor
 
         # self.MLPChannels = [self.out_channel] + self.MLPChannels + [self.MLPOutputSize]

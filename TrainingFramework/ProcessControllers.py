@@ -15,9 +15,17 @@ class Saver(object):
         super(Saver, self).__init__()
         #self.ckpt_state = {}
 
+    def LoadContext(self, context_add):
+        try:
+            with open(context_add, 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            print(f"[ERROR] JSON 解码失败: {context_add}")
+            return None
+
     def SaveContext(self, context_add, context_obj):
-        # if something can be summarized as a dict {}
-        # then using SaveContext function to save it into a json file.
+        if not isinstance(context_obj, (dict, list)):
+           raise ValueError("context_obj 必须是一个字典或列表才能保存为 JSON 格式")
         with open(context_add, 'w') as f:
             json.dump(context_obj, f)
 
@@ -61,7 +69,6 @@ class ControllerStatusSaver(object):
 
     def __init__(self, args, ControllerType, Addr=None, restart=False):
         super(ControllerStatusSaver, self).__init__()
-        self.saver = Saver()
         self.args = args
 
         # Ensure correct path joining
@@ -80,6 +87,9 @@ class ControllerStatusSaver(object):
                 self.Addr = Addr
             else:
                 raise KeyError('Wrong ControllerType given.')
+            # 最后统一创建目录（根据最终路径）
+        os.makedirs(self.Addr, exist_ok=True)
+        self.saver = Saver()
 
     def DeleteFilesInDir(self, addr):
         del_list = os.listdir(addr)
@@ -101,31 +111,35 @@ class ControllerStatusSaver(object):
             file_name = self.Addr + '0'
         self.saver.SaveContext(file_name, status)
 
-
     def LoadStatus(self, status_idx=None):
-        # if the index is not given, then find the last file from the folder. the last file is the file to be loaded.
-        # otherwise, the file of the given index is to be loaded.
-        if not status_idx:
-            file_name = self.Addr + self.LastFileName(self.Addr)
+        if status_idx is None:
+            last_file = self.LastFileName(self.Addr)
+            if not last_file:  # None 或空字符串 都判断为 False
+                print("[信息] 未找到之前的状态。")
+                return None
+            file_name = os.path.join(self.Addr, last_file)
         else:
-            file_name = self.Addr + str(status_idx)
+            file_name = os.path.join(self.Addr, str(status_idx))
 
-        # if no file is to be loaded, then return None.
-        # (e.g. empty in the folder or the given index not exists)
+        print(f"[调试] 正在从以下路径加载状态: {file_name}")
         if os.path.exists(file_name):
             return self.saver.LoadContext(file_name)
         else:
+            print(f"[警告] 文件未找到: {file_name}")
             return None
 
     def LastFileName(self, Addr):
+        if not os.path.exists(Addr):
+            os.makedirs(Addr, exist_ok=True)
+            return None  # 不返回 ' '
+
         dir_files = os.listdir(Addr)
-        # os.listdir returns the file names in Addr, only the names, without the Addr path.
+
         if dir_files:
             dir_files = sorted(dir_files, key=lambda x: os.path.getctime(os.path.join(Addr, x)))
-            last_file = dir_files[-1]
+            return dir_files[-1]
         else:
-            last_file = ' '
-        return last_file
+            return None
 
     def CountFileNames(self, Addr):
         dir_files = os.listdir(Addr)
