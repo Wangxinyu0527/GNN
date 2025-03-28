@@ -554,11 +554,12 @@ class ExperimentProcessController(object):
         self.seedperopt = self.ExpOptions['SeedPerOpt']
 
         # process the params based on different searching methods, determined by the ExpOptions
-        if self.search == 'greedy' or self.search == 'grid':
+        if self.search == 'greedy' or self.search == 'grid'or self.search == 'optuna':
             self.BasicParamList, self.AdjustableParamList, self.SpecificParamList = Params
 
         self.ConfigControllersList = {
-            'greedy': GreedyConfigController
+            'greedy': GreedyConfigController,
+            'optuna': OptunaConfigController  #支持 Optuna 控制器
         }
 
         # os.environ['CUDA_VISIBLE_DEVICES'] = self.BasicParamList['CUDA_VISIBLE_DEVICES']
