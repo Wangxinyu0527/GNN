@@ -1,7 +1,7 @@
 from TrainingFramework.ProcessControllers import *
 
 ExpOptions = {
-    'Search': 'greedy',
+    'Search': 'optuna',  # 使用 Optuna 进行超参数搜索
     'SeedPerOpt': 3,
     'SeedSearch': False,
 }
@@ -13,7 +13,7 @@ BasicParamList = {
     'RootPath': os.path.abspath(os.path.join('outputs')),
     'CUDA_VISIBLE_DEVICES': '0',
     'TaskNum': 1,
-    'ClassNum': 1,
+    'ClassNum': 1,#回归任务
     'OutputSize': 1,#回归任务只预测一个连续值
     'Feature': 'PyGGIN',
     'Model': 'GslMol',
@@ -33,9 +33,9 @@ BasicParamList = {
     'LowerThanMaxLimit': 50,
     'DecreasingLimit': 30,
 
-    'Scheduler': 'PolynomialDecayLR',
+    'Scheduler': 'PolynomialDecayLR',#学习率调度
 
-    # Params for PolynomialDecayLR only
+    # 学习率相关参数
     'WarmupEpoch': 2,
     'LRMaxEpoch': 300,
     'EndLR':1e-9,
@@ -59,7 +59,7 @@ BasicParamList = {
 
     #####################################
 
-    # Params for GslMol only
+    # 模型相关的参数
     'init_adj_epsilon': 0.2,
     'radius': 2,
     'nBits': 1024,
@@ -113,6 +113,7 @@ BasicParamList = {
     'DNNLayers': [],
 
 }
+#可调整的超参数列表
 AdjustableParamList = {
     'FPSize' : [128, 32, 64, 150, 200],
     'GINLayers': [2,5,3,4],
