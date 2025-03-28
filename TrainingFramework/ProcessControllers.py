@@ -1,7 +1,9 @@
 import json
 import os
 import torch
+import optuna
 import random
+import copy
 from TrainingFramework.Dataset import MolDatasetCreator
 from TrainingFramework.Evaluator import *
 from TrainingFramework.Scheduler import *
@@ -408,6 +410,57 @@ class GreedyConfigController(object):
         self.result = status['result']
         self.opt.args = status['next_opt_args']
         #print("Config Controller has been loaded. Experiments continue.")
+#定义新的超参数方法
+class OptunaConfigController(object):
+    def __init__(self, BasicHyperparamList, AdjustableHyperparamList, SpecificHyperparamList=None):
+        super(OptunaConfigController, self).__init__()
+        self.BasicHyperparameterList = BasicHyperparamList
+        self.HyperparameterList = AdjustableHyperparamList
+        self.SpecificHyperparamList = SpecificHyperparamList
+        self.opt = Configs(self.BasicHyperparameterList)
+        self.MainMetric = self.BasicHyperparameterList['MainMetric']
+        self.is_classification = (self.opt.args['ClassNum'] > 1)
+        self.study = optuna.create_study(direction='minimize' if not self.is_classification else 'maximize')
+
+    def objective(self, trial):
+        # 设置超参数
+        for param in self.HyperparameterList:
+            if param == 'lr':
+                self.opt.set_args(param, trial.suggest_loguniform(param, 1e-5, 1e-2))
+            elif param == 'rel_dropout':
+                self.opt.set_args(param, trial.suggest_uniform(param, 0.0, 0.5))
+            elif param == 'rel_hidden_dim':
+                self.opt.set_args(param, trial.suggest_categorical(param, [64, 128, 256]))
+
+        # 创建并训练模型
+        trainer = Trainer(self.opt)
+        BestModel, MaxResult = trainer.TrainOneOpt()
+
+        # 根据任务类型返回相应的指标（分类任务返回AUC，回归任务返回RMSE）
+        if self.is_classification:
+            return MaxResult['AUC']  # 选择最优AUC
+        else:
+            return MaxResult[self.MainMetric]  # 选择最优RMSE
+
+    def optimize(self, n_trials=30):
+        self.study.optimize(self.objective, n_trials=n_trials)
+
+        # 获取最优超参数配置和最优模型
+        best_trial = self.study.best_trial
+        print(f"Best trial params: {best_trial.params}")
+        print(f"Best score: {best_trial.value}")
+
+        # 保存最优超参数
+        with open('best_hyperparams.json', 'w') as f:
+            json.dump(best_trial.params, f, indent=2)
+
+        # 保存最优模型
+        best_model = trainer.model
+        torch.save(best_model.state_dict(), 'best_model.pth')
+
+    def get_best_config(self):
+        return self.study.best_trial.params
+
 
 
 ##########################################################################################################
