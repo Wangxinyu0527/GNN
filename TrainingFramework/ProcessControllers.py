@@ -118,7 +118,7 @@ class ControllerStatusSaver(object):
             if not last_file:  # None 或空字符串 都判断为 False
                 print("[信息] 未找到之前的状态。")
                 return None
-            file_name = os.path.join(self.Addr, last_file)
+            file_name = os.path.join(self.Addr, last_file)#使用 os.path.join(...) 替代字符串拼接
         else:
             file_name = os.path.join(self.Addr, str(status_idx))
 
