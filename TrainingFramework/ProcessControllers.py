@@ -132,7 +132,7 @@ class ControllerStatusSaver(object):
     def LastFileName(self, Addr):
         if not os.path.exists(Addr):
             os.makedirs(Addr, exist_ok=True)
-            return None  # 不返回 ' '
+            return None  #不返回' '
 
         dir_files = os.listdir(Addr)
 
@@ -140,7 +140,7 @@ class ControllerStatusSaver(object):
             dir_files = sorted(dir_files, key=lambda x: os.path.getctime(os.path.join(Addr, x)))
             return dir_files[-1]
         else:
-            return None
+            return None  #不返回' '
 
     def CountFileNames(self, Addr):
         dir_files = os.listdir(Addr)
