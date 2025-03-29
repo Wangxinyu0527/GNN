@@ -421,46 +421,113 @@ class OptunaConfigController(object):
         self.MainMetric = self.BasicHyperparameterList['MainMetric']
         self.is_classification = (self.opt.args['ClassNum'] > 1)
         self.study = optuna.create_study(direction='minimize' if not self.is_classification else 'maximize')
+        # ✅ 添加这段代码设置 TrialPath
+        self.opt.set_args('TrialPath', os.path.join(
+            self.opt.args['RootPath'], self.opt.args['ExpName'] + '/'
+        ))
+        # ✅ 使用 TPE + 剪枝策略（替代默认 sampler）
+        self.study = optuna.create_study(
+            direction='maximize' if self.is_classification else 'minimize',
+            sampler=optuna.samplers.TPESampler(seed=42, multivariate=True),
+            pruner=optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=10)
+        )
 
     def objective(self, trial):
         # 设置超参数
         for param in self.HyperparameterList:
             if param == 'lr':
-                self.opt.set_args(param, trial.suggest_loguniform(param, 1e-5, 1e-2))
+                self.opt.set_args(param, trial.suggest_float(param, 1e-5, 1e-2, log=True))
             elif param == 'rel_dropout':
-                self.opt.set_args(param, trial.suggest_uniform(param, 0.0, 0.5))
+                self.opt.set_args(param, trial.suggest_float(param, 0.0, 0.5))
             elif param == 'rel_hidden_dim':
                 self.opt.set_args(param, trial.suggest_categorical(param, [64, 128, 256]))
+            elif param == 'WeightDecay':
+                self.opt.set_args(param, trial.suggest_float(param, 3.0, 6.0))
 
-        # 创建并训练模型
-        trainer = Trainer(self.opt)
-        BestModel, MaxResult = trainer.TrainOneOpt()
+        # 添加必要参数，防止 KeyError
+        self.opt.set_args('TorchSeed', 42)
+        self.opt.set_args('split_seed', 0)
 
-        # 根据任务类型返回相应的指标（分类任务返回AUC，回归任务返回RMSE）
+        # ✅ 创建 trial 专属路径
+        trial_name = f"optuna_trial_{trial.number}"
+        exp_dir = os.path.join(self.opt.args['TrialPath'], trial_name)
+        save_dir = os.path.join(exp_dir, "0")
+        model_dir = os.path.join(save_dir, "model")
+
+        self.opt.set_args("ExpDir", exp_dir)
+        self.opt.set_args("SaveDir", save_dir)
+        self.opt.set_args("ModelDir", model_dir)
+
+        # ✅ 创建所需目录
+        os.makedirs(model_dir, exist_ok=True)
+        # ✨ try-catch 包裹，保护 Optuna
+        try:
+            trainer = RelationTrainer(self.opt)
+            _, MaxResult = trainer.TrainOneOpt()
+
+            if self.is_classification:
+                return MaxResult["AUC"]
+            else:
+                return MaxResult[self.MainMetric]
+
+        except AssertionError as e:
+            print(f"⚠️ Trial {trial.number} 因 raw_adj 出现负值被跳过")
+            raise optuna.TrialPruned()  # ✨ 优雅地跳过，不报错终止
+        # 训练模型
+        trainer = RelationTrainer(self.opt)
+        _, MaxResult = trainer.TrainOneOpt()
+
+        # ✅ 保存当前模型（保存在当前 trial 目录）
+        model_path = os.path.join(model_dir, 'model.pth')
+        torch.save(trainer.model.state_dict(), model_path)
+
+        # ✅ 记录模型路径和指标，供 optimize 后用
+        trial.set_user_attr("model_path", model_path)
+        trial.set_user_attr("metrics", MaxResult)
+
+        # ✅ 返回主指标作为优化目标
         if self.is_classification:
-            return MaxResult['AUC']  # 选择最优AUC
+            return MaxResult['AUC']
         else:
-            return MaxResult[self.MainMetric]  # 选择最优RMSE
+            return MaxResult[self.MainMetric]
+        # ✅ 保存最优模型路径和指标信息到 trial 属性，供 optimize() 后续使用
+        model_path = os.path.join(self.opt.args['ModelDir'], 'model_best.pth')  # 你保存模型的路径
+        trial.set_user_attr("model_path", model_path)
+        trial.set_user_attr("metrics", MaxResult)  # MaxResult 是 TrainOneOpt 返回的评估结果
 
     def optimize(self, n_trials=30):
         self.study.optimize(self.objective, n_trials=n_trials)
-
-        # 获取最优超参数配置和最优模型
+        if len(self.study.trials) == 0 or all(t.state != optuna.trial.TrialState.COMPLETE for t in self.study.trials):
+            print("❌ 所有 trial 都失败或被剪枝，没有找到有效的超参数组合。")
+            return
+        # 获取最优试验（trial）信息
         best_trial = self.study.best_trial
-        print(f"Best trial params: {best_trial.params}")
-        print(f"Best score: {best_trial.value}")
+        print(f"最优试验的超参数配置为：{best_trial.params}")
+        print(f"对应的最优得分为：{best_trial.value}")
 
-        # 保存最优超参数
+        # ✅ 保存最优超参数到 JSON 文件
         with open('best_hyperparams.json', 'w') as f:
             json.dump(best_trial.params, f, indent=2)
+        print("已保存最优超参数到 best_hyperparams.json")
 
-        # 保存最优模型
-        best_model = trainer.model
-        torch.save(best_model.state_dict(), 'best_model.pth')
+        # ✅ 保存最优模型的评估指标（如 RMSE/AUC）
+        with open('best_metrics.json', 'w') as f:
+            json.dump(best_trial.user_attrs['metrics'], f, indent=2)
+        print("已保存最优模型的评估指标到 best_metrics.json")
+
+        # ✅ 拷贝最优模型文件为统一命名
+        best_model_path = best_trial.user_attrs["model_path"]
+        if os.path.exists(best_model_path):
+            shutil.copyfile(best_model_path, "best_model.pth")
+            print("🧠 最优模型已保存为 best_model.pth")
+        else:
+            print("⚠️ 警告：找不到最优模型文件，路径为：", best_model_path)
 
     def get_best_config(self):
-        return self.study.best_trial.params
-
+        best_trial = self.study.best_trial
+        best_params = best_trial.params
+        best_score = best_trial.value  # RMSE 或 AUC
+        return best_params, best_score
 
 
 ##########################################################################################################
@@ -567,15 +634,47 @@ class ExperimentProcessController(object):
 
         self.controllerstatussaver = ControllerStatusSaver(self.configcontroller.opt.args,'ExperimentProcessController')
 
-        status = self.LoadStatusFromFile()
-        if status:
-            self.SetControllerStatus(status)
-        else:
-            self.InitControllerStatus()
+        # status = self.LoadStatusFromFile()
+        # if status:
+        #     self.SetControllerStatus(status)
+        # else:
+        #     self.InitControllerStatus()
         # The status: cur_opt_results, opt_results and i have been set, either initialized or loaded from files.
+        if self.search in ['greedy', 'grid']:
+            status = self.LoadStatusFromFile()
+            if status:
+                self.SetControllerStatus(status)
+            else:
+                self.InitControllerStatus()
 
     def ExperimentStart(self):
+        # ✅ 1. 如果是 Optuna 搜索，走 optuna 流程
+        if self.search == 'optuna':
+            print("使用 Optuna 进行超参数搜索")
+            self.configcontroller.optimize(n_trials=30)
+            # ✅ 获取最优配置和指标
+            best_config = self.configcontroller.get_best_config()
 
+            print("最优超参数配置：")
+            print(best_config)
+            print("对应的最优评估指标：", best_score)
+
+            # ✅ 保存最优结果
+            save_path = os.path.join(best_config.get('TrialPath', './outputs'), 'optuna_best_result.json')
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            with open(save_path, 'w', encoding='utf-8') as f:
+                json.dump({
+                    "最优超参数配置": best_config,
+                    "最优评估指标": best_score
+                }, f, indent=2, ensure_ascii=False)
+
+            # ✅ 可选：用最优参数再训练一次模型（建议）
+            best_opt = Configs(best_config)
+            trainer = RelationTrainer(best_opt)
+            trainer.TrainOneOpt()
+            return
+
+        # ✅ 2. 否则执行原有贪心策略
         end_flag = False
 
         while not end_flag:
@@ -589,7 +688,6 @@ class ExperimentProcessController(object):
                 print(opt.args)
 
                 trainer = RelationTrainer(opt)
-
                 ckpt, value = trainer.TrainOneOpt()
 
                 print(f"cur_opt_cur_seed_value: {value}")
@@ -599,9 +697,9 @@ class ExperimentProcessController(object):
                 self.SaveStatusToFile()
                 self.configcontroller.SaveStatusToFile()
 
-            cur_opt_value = np.mean(self.cur_opt_results)     # the average result value of the current opt on self.seedperopt times running.
+            cur_opt_value = np.mean(self.cur_opt_results)
             self.opt_results.append(cur_opt_value)
-            self.cur_opt_results = []                         # clear the buffer of current opt results.
+            self.cur_opt_results = []
 
             self.configcontroller.StoreResults(cur_opt_value)
             self.configcontroller.exp_count += 1
@@ -615,10 +713,9 @@ class ExperimentProcessController(object):
         print("The best averaged value of all opts is: ")
         if opt.args['ClassNum'] == 1:
             best_opt_result = min(self.opt_results)
-            print(best_opt_result)
         else:
             best_opt_result = max(self.opt_results)
-            print(best_opt_result)
+        print(best_opt_result)
         print("And the corresponding exp num is: ")
         print(self.opt_results.index(best_opt_result))
 
