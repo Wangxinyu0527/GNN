@@ -409,10 +409,16 @@ class FpSimNet(nn.Module):
                 return node_anchor_adj
             else:
                 raw_adj = graph_learner(node_features)
-
+                # 原方法：跳过 trial（不训练含负值的图）：这是一种**“防止错误传播 + 保守建图”的策略**，缺点是丢了潜在信息 + 调参空间缩小。
+                # if self.graph_metric_type in ('kernel', 'weighted_cosine'):
+                #     assert raw_adj.min().item() >= 0
+                #     adj = raw_adj / torch.clamp(torch.sum(raw_adj, dim=-1, keepdim=True), min=VERY_SMALL_NUMBER)
+                
+                #改进方式：保留负值 + 归一化（比如 tanh、min-max、signed softmax）
                 if self.graph_metric_type in ('kernel', 'weighted_cosine'):
-                    assert raw_adj.min().item() >= 0
-                    adj = raw_adj / torch.clamp(torch.sum(raw_adj, dim=-1, keepdim=True), min=VERY_SMALL_NUMBER)
+                    # 保留负值并归一化：对每一行进行绝对值归一化，保留正负方向
+                    row_sum = torch.sum(torch.abs(raw_adj), dim=-1, keepdim=True)
+                    adj = raw_adj / torch.clamp(row_sum, min=VERY_SMALL_NUMBER)
 
                 elif self.graph_metric_type == 'cosine':
                     adj = (raw_adj > 0).float()
