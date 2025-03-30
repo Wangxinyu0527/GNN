@@ -1289,31 +1289,40 @@ class RelationTrainer(object):
             self.initer.WeightInit(param)
 
     def RemoveOtherCkpts(self, bestmodel):
-        if bestmodel == None:
-            print(f"Ckpts will be deleted by Seperated Evaler.")
+        if bestmodel is None:
+            print("✅ 模型将由独立评估器处理，无需删除。")
             return 0
 
-        print(f"Deleting other ckpt models.")
-        model_dir = self.opt.args['SaveDir'] + 'model/'
-        filenames = os.listdir(model_dir)
-        for file in filenames:
-            if file != ('model' + str(bestmodel)):
-                os.remove(model_dir + file)
+        print("🧹 正在删除其余模型文件...")
+        model_dir = os.path.join(self.opt.args['SaveDir'], 'model')
+        if os.path.exists(model_dir):
+            filenames = os.listdir(model_dir)
+            for file in filenames:
+                if file != f'model{bestmodel}':
+                    os.remove(os.path.join(model_dir, file))
+        else:
+            print(f"⚠️ 模型文件夹不存在：{model_dir}")
 
-        print(f"Deleting other result files.")
-        result_dir = self.opt.args['SaveDir'] + 'results/'
-        filenames = os.listdir(result_dir)
-        for file in filenames:
-            if file != ('result' + str(bestmodel)):
-                os.remove(result_dir + file)
+        print("🧹 正在删除其余结果文件...")
+        result_dir = os.path.join(self.opt.args['SaveDir'], 'results')
+        if os.path.exists(result_dir):
+            filenames = os.listdir(result_dir)
+            for file in filenames:
+                if file != f'result{bestmodel}':
+                    os.remove(os.path.join(result_dir, file))
+        else:
+            print(f"⚠️ 结果文件夹不存在：{result_dir}")
 
-        print(f"Deleting other TrainerStatus files.")
-        status_dir = self.opt.args['SaveDir'] + 'TrainerStatus/'
-        filenames = os.listdir(status_dir)
-        filename = self.LastFileName(status_dir)
-        for file in filenames:
-            if file != filename:
-                os.remove(status_dir + file)
+        print("🧹 正在删除其余训练状态文件...")
+        status_dir = os.path.join(self.opt.args['SaveDir'], 'TrainerStatus')
+        if os.path.exists(status_dir):
+            filenames = os.listdir(status_dir)
+            filename = self.LastFileName(status_dir)
+            for file in filenames:
+                if file != filename:
+                    os.remove(os.path.join(status_dir, file))
+        else:
+            print(f"⚠️ 训练状态文件夹不存在：{status_dir}")
 
     def LastFileName(self, Addr):
         dir_files = os.listdir(Addr)

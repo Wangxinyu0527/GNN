@@ -413,7 +413,7 @@ class FpSimNet(nn.Module):
                 # if self.graph_metric_type in ('kernel', 'weighted_cosine'):
                 #     assert raw_adj.min().item() >= 0
                 #     adj = raw_adj / torch.clamp(torch.sum(raw_adj, dim=-1, keepdim=True), min=VERY_SMALL_NUMBER)
-                
+
                 #改进方式：保留负值 + 归一化（比如 tanh、min-max、signed softmax）
                 if self.graph_metric_type in ('kernel', 'weighted_cosine'):
                     # 保留负值并归一化：对每一行进行绝对值归一化，保留正负方向
