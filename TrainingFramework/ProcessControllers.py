@@ -1280,10 +1280,11 @@ class RelationTrainer(object):
 
     def SaveTrainerStopFlag(self):
         trainer_stop_flag_file = self.opt.args['SaveDir'] + 'trainer_stop_flag.json'
-        trainer_stop_flag = True
+        trainer_stop_flag = {
+            "EarlyStop": True,
+            "Reason": "训练满足早停条件"
+        }
         self.saver.SaveContext(trainer_stop_flag_file, trainer_stop_flag)
-        return
-
     def WeightInit(self):
         for param in self.net.parameters():
             self.initer.WeightInit(param)
