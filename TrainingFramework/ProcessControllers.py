@@ -1325,16 +1325,24 @@ class RelationTrainer(object):
             print(f"⚠️ 训练状态文件夹不存在：{status_dir}")
 
     def LastFileName(self, Addr):
-        dir_files = os.listdir(Addr)
-        # print(f"dir_files: {dir_files}")
-        # os.listdir returns the file names in Addr, only the names, without the Addr path.
-        if dir_files:
+        try:
+            if not os.path.exists(Addr):
+                print(f"⚠️ 文件夹路径不存在：{Addr}")
+                return None
+
+            dir_files = os.listdir(Addr)
+            if not dir_files:
+                print(f"⚠️ 文件夹为空：{Addr}")
+                return None
+
             dir_files = sorted(dir_files, key=lambda x: os.path.getctime(os.path.join(Addr, x)))
             last_file = dir_files[-1]
-        else:
-            last_file = ' '
-        # print(f"last_file: {last_file}")
-        return last_file
+            print(f"✅ 最近的文件是：{last_file}")
+            return last_file
+
+        except Exception as e:
+            print(f"❌ 获取最新文件时出错：{str(e)}")
+            return None
 
 
 
