@@ -29,7 +29,7 @@ BasicParamList = {
     'TestBalance': False,
     'SplitRate': [0.8, 0.1],
     'Splitter': 'Scaffold',
-    'MaxEpoch': 300,
+    'MaxEpoch': 50,
     'LowerThanMaxLimit': 50,
     'DecreasingLimit': 30,
 
@@ -37,7 +37,7 @@ BasicParamList = {
 
     # Params for PolynomialDecayLR only
     'WarmupEpoch': 2,
-    'LRMaxEpoch': 300,
+    'LRMaxEpoch': 50,
     'EndLR':1e-9,
     'Power':1.0,
     # Params for StepLR only

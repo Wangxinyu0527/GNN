@@ -4,6 +4,8 @@ from TrainingFramework.Featurizer import *
 from torch.utils import data
 from torch_geometric.data import InMemoryDataset
 import os
+from sklearn.preprocessing import StandardScaler
+import pickle
 
 
 class PyGMolDataset(InMemoryDataset):
@@ -110,6 +112,21 @@ class MolDatasetCreator(object):
 
             for idx, data in enumerate(self.screened_dataset):
                 data.update({'idx': idx})
+            # 提取标签
+            labels = np.array([float(d['Value']) for d in self.screened_dataset])
+
+            # 进行标准化
+            scaler = StandardScaler()
+            labels = scaler.fit_transform(labels.reshape(-1, 1)).flatten()
+
+            # 替换原始标签
+            for i in range(len(self.screened_dataset)):
+                self.screened_dataset[i]['Value'] = labels[i]
+
+            # ✅ 保存 scaler 以备反标准化使用
+            os.makedirs(self.opt.args['SaveDir'], exist_ok=True)
+            with open(os.path.join(self.opt.args['SaveDir'], 'scaler.pkl'), 'wb') as f:
+                pickle.dump(scaler, f)
 
             self.CheckScreenedDatasetIdx()
         else:

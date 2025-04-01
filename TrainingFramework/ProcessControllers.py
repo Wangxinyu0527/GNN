@@ -8,15 +8,25 @@ from TrainingFramework.Dataset import MolDatasetCreator
 from TrainingFramework.Evaluator import *
 from TrainingFramework.Scheduler import *
 from TrainingFramework.Initializer import *
-
+import shutil
 import torch.optim as optim
 from Models.GslMol.molecule_gsl_model import MolRelationNet
+
+        #此文档使用RDKit库进行化学数据处理的Python模块
+        #主要用于分子操作、特征提取和数据验证。
+
+
+
+
+
+#定义了一个名为 Saver 的类，用于实现保存和加载上下文数据的功能。
+# 提供了几个方法来处理文件中的数据存储和读取，包括JSON格式的存取操作。
 class Saver(object):
-    # Module that package the saving functions
     def __init__(self):
         super(Saver, self).__init__()
         #self.ckpt_state = {}
 
+#加载JSON文件并解析为Python对象（字典或列表）
     def LoadContext(self, context_add):
         try:
             with open(context_add, 'r') as f:
@@ -24,13 +34,13 @@ class Saver(object):
         except json.JSONDecodeError:
             print(f"[ERROR] JSON 解码失败: {context_add}")
             return None
-
+#：将字典或列表数据保存为JSON文件。
     def SaveContext(self, context_add, context_obj):
         if not isinstance(context_obj, (dict, list)):
            raise ValueError("context_obj 必须是一个字典或列表才能保存为 JSON 格式")
         with open(context_add, 'w') as f:
             json.dump(context_obj, f)
-
+#从指定文件路径加载状态信息，如果文件不存在，抛出异常。
     def LoadStatusFromFile(self):
         file_name = os.path.normpath(file_name)  # 规范化路径（替换斜杠、去除空格）
         file_name = file_name.strip()  # 确保路径末尾无空格
@@ -39,14 +49,19 @@ class Saver(object):
         else:
             raise FileNotFoundError(f"文件 {file_name} 不存在！")
 
+
+#用于管理配置参数。它接收一个字典（ParamList），并将其中的键值对存储在类的 args 属性中。
+# 类提供了设置、获取和更新配置参数的方法。
 class Configs(object):
+    #初始化一个 Configs 对象，并根据传入的 ParamList 参数列表来设置配置。
     def __init__(self, ParamList):
         # initiale a Config object with given paramlist
         super(Configs, self).__init__()
-        self.args = {}
+        self.args = {} #初始化一个空的字典 args 用于存储配置参数。
+        #遍历传入的 ParamList 字典的键。
         for param in ParamList.keys():
             self.set_args(param, ParamList.get(param))
-
+#设置或更新配置项
     def set_args(self, argname, value):
         if argname in self.args:
             print("Arg", argname, "is updated.")
@@ -54,21 +69,20 @@ class Configs(object):
         else:
             print('Arg', argname, 'is added.')
             self.args.update({argname: value})
-
+#用于获取指定名称的配置项。
     def get_args(self, argname, value):
         if argname in self.args:
             return self.args[argname]
         else:
             return value
 
-
+#管理控制器状态的保存和加载操作。
 class ControllerStatusSaver(object):
-    # Package functions for saving and loading status of a controller into/from a file.
-    # In a ControllerStatusSaver, it maintains three global variable:
-    # self.args: args
-    # self.saver: Saver() object for file saving and loading.
-    # self.Addr: The Addr to save the status of the controller.
-
+    # 输入：
+    # args: 参数字典，包含配置选项，如路径等。
+    # ControllerType: 控制器类型，用于确定保存文件的路径。
+    # Addr: 可选参数，指定控制器状态文件的存储路径。如果ControllerType不匹配，Addr会被用来指定路径。
+    # restart: 用于表示是否需要重新启动，暂时未在此方法中使用
     def __init__(self, args, ControllerType, Addr=None, restart=False):
         super(ControllerStatusSaver, self).__init__()
         self.args = args
@@ -93,17 +107,23 @@ class ControllerStatusSaver(object):
             # 并把 self.saver = Saver() 放在所有路径设置之后，确保路径是最终版本再创建
         os.makedirs(self.Addr, exist_ok=True)
         self.saver = Saver()
-
+#删除指定路径下的所有文件。
+    #输入：addr: 要删除文件的目录路径。
     def DeleteFilesInDir(self, addr):
         del_list = os.listdir(addr)
         for f in del_list:
             file_addr = addr + f
             os.remove(file_addr)
-
+#检查保存路径是否存在，如果不存在则创建该路径。
     def CheckAddr(self):
         if not os.path.exists(self.Addr):
             os.makedirs(self.Addr)  # 使用os.makedirs确保路径的完整性
-
+#将当前状态保存到文件中。状态文件的命名根据已有的文件数量生成，保证文件命名的连续性。
+    # 输入：
+    #
+    # status: 当前状态，通常是一个字典或列表，代表控制器的状态。
+    #
+    # restart: 可选参数，用于标记是否是重启保存的状态。
     def SaveStatus(self, status, restart=False):
 
         next_cnt = self.CountFileNames(self.Addr)
@@ -113,7 +133,7 @@ class ControllerStatusSaver(object):
         else:
             file_name = self.Addr + '0'
         self.saver.SaveContext(file_name, status)
-
+#从文件中加载指定索引的状态，若未提供索引，则加载最近保存的状态。
     def LoadStatus(self, status_idx=None):
         if status_idx is None:
             last_file = self.LastFileName(self.Addr)
@@ -130,7 +150,7 @@ class ControllerStatusSaver(object):
         else:
             print(f"[警告] 文件未找到: {file_name}")
             return None
-
+#获取指定目录中最后修改的文件名，即最近保存的文件。
     def LastFileName(self, Addr):
         if not os.path.exists(Addr):
             os.makedirs(Addr, exist_ok=True)
@@ -143,7 +163,7 @@ class ControllerStatusSaver(object):
             return dir_files[-1]
         else:
             return None  #不返回' '
-
+#统计指定目录中的文件数量
     def CountFileNames(self, Addr):
         dir_files = os.listdir(Addr)
         return len(dir_files)
@@ -152,9 +172,9 @@ class ControllerStatusSaver(object):
 
 
 class EarlyStopController(object):
-    # A module used to control the early stop part of the experimental progress.
-    # It maintains the result of each epoch, max results, count of worse results
-    # and to make decision whether the training progress should be early stopped.
+    # 这是一个用于控制实验进度中早停部分的模块。
+    # 它维护每个周期的结果、最大结果、较差结果的计数，
+    # 并根据这些信息决定是否应该提前停止训练进度。
     def __init__(self, opt):
         super(EarlyStopController, self).__init__()
         self.opt = opt
@@ -410,6 +430,18 @@ class GreedyConfigController(object):
         self.result = status['result']
         self.opt.args = status['next_opt_args']
         #print("Config Controller has been loaded. Experiments continue.")
+
+def cleanup_trials(base_dir, best_trial_name):
+    for item in os.listdir(base_dir):
+        if item.startswith("optuna_trial_") and item != best_trial_name:
+            path = os.path.join(base_dir, item)
+            try:
+                shutil.rmtree(path)
+                print(f"🧹 已删除多余 trial 文件夹：{item}")
+            except Exception as e:
+                print(f"⚠️ 删除 {item} 失败: {e}")
+
+
 #定义新的超参数方法
 class OptunaConfigController(object):
     def __init__(self, BasicHyperparamList, AdjustableHyperparamList, SpecificHyperparamList=None):
@@ -431,24 +463,23 @@ class OptunaConfigController(object):
             sampler=optuna.samplers.TPESampler(seed=42, multivariate=True),
             pruner=optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=10)
         )
-
+#添加参数调整
     def objective(self, trial):
         # 设置超参数
         for param in self.HyperparameterList:
             if param == 'lr':
-                self.opt.set_args(param, trial.suggest_float(param, 1e-5, 1e-2, log=True))
+                self.opt.set_args(param, trial.suggest_float(param, 1e-5, 3e-4, log=True))
             elif param == 'rel_dropout':
                 self.opt.set_args(param, trial.suggest_float(param, 0.0, 0.5))
             elif param == 'rel_hidden_dim':
                 self.opt.set_args(param, trial.suggest_categorical(param, [64, 128, 256]))
             elif param == 'WeightDecay':
-                self.opt.set_args(param, trial.suggest_float(param, 3.0, 6.0))
-
+                self.opt.set_args(param, trial.suggest_float(param, 1e-6, 1e-3, log=True))
         # 添加必要参数，防止 KeyError
         self.opt.set_args('TorchSeed', 42)
         self.opt.set_args('split_seed', 0)
 
-        # ✅ 创建 trial 专属路径
+        # 设置 trial 专属目录
         trial_name = f"optuna_trial_{trial.number}"
         exp_dir = os.path.join(self.opt.args['TrialPath'], trial_name)
         save_dir = os.path.join(exp_dir, "0")
@@ -458,42 +489,33 @@ class OptunaConfigController(object):
         self.opt.set_args("SaveDir", save_dir)
         self.opt.set_args("ModelDir", model_dir)
 
-        # ✅ 创建所需目录
         os.makedirs(model_dir, exist_ok=True)
-        # ✨ try-catch 包裹，保护 Optuna
+
         try:
             trainer = RelationTrainer(self.opt)
             _, MaxResult = trainer.TrainOneOpt()
 
-            if self.is_classification:
-                return MaxResult["AUC"]
+            # 保存当前模型（安全判断）
+            model_path = os.path.join(model_dir, 'model.pth')
+            if hasattr(trainer, 'net'):
+                torch.save(trainer.net.state_dict(), model_path)
+                trial.set_user_attr("model_path", model_path)
             else:
-                return MaxResult[self.MainMetric]
+                print("⚠️ Trainer 中没有 net 属性，模型未保存")
+            # 保存指标与路径
+            trial.set_user_attr("model_path", model_path)
+            trial.set_user_attr("metrics", MaxResult)
 
+            # ✅ 记录日志
+            log_path = os.path.join(model_dir, "metrics.json")
+            with open(log_path, 'w') as f:
+                json.dump(MaxResult, f, indent=2)
+
+            # ✅ 返回 RMSE（或 AUC）
+            return MaxResult['AUC'] if self.is_classification else MaxResult[self.MainMetric]
         except AssertionError as e:
-            print(f"⚠️ Trial {trial.number} 因 raw_adj 出现负值被跳过")
-            raise optuna.TrialPruned()  # ✨ 优雅地跳过，不报错终止
-        # 训练模型
-        trainer = RelationTrainer(self.opt)
-        _, MaxResult = trainer.TrainOneOpt()
-
-        # ✅ 保存当前模型（保存在当前 trial 目录）
-        model_path = os.path.join(model_dir, 'model.pth')
-        torch.save(trainer.model.state_dict(), model_path)
-
-        # ✅ 记录模型路径和指标，供 optimize 后用
-        trial.set_user_attr("model_path", model_path)
-        trial.set_user_attr("metrics", MaxResult)
-
-        # ✅ 返回主指标作为优化目标
-        if self.is_classification:
-            return MaxResult['AUC']
-        else:
-            return MaxResult[self.MainMetric]
-        # ✅ 保存最优模型路径和指标信息到 trial 属性，供 optimize() 后续使用
-        model_path = os.path.join(self.opt.args['ModelDir'], 'model_best.pth')  # 你保存模型的路径
-        trial.set_user_attr("model_path", model_path)
-        trial.set_user_attr("metrics", MaxResult)  # MaxResult 是 TrainOneOpt 返回的评估结果
+            print(f"⚠️ Trial {trial.number} 出现错误: {e}")
+            raise optuna.TrialPruned()
 
     def optimize(self, n_trials=30):
         self.study.optimize(self.objective, n_trials=n_trials)
@@ -517,11 +539,20 @@ class OptunaConfigController(object):
 
         # ✅ 拷贝最优模型文件为统一命名
         best_model_path = best_trial.user_attrs["model_path"]
+        # 👉 添加调试信息，确认路径是否存在
+        print("📁 当前最佳模型路径是：", best_model_path)
+        print("📁 文件是否存在：", os.path.exists(best_model_path))
         if os.path.exists(best_model_path):
             shutil.copyfile(best_model_path, "best_model.pth")
             print("🧠 最优模型已保存为 best_model.pth")
         else:
             print("⚠️ 警告：找不到最优模型文件，路径为：", best_model_path)
+        # ✅ 🆕 添加自动清理逻辑
+        if self.opt.args.get("CleanOtherTrials", False):
+            print("🧹 开启自动清理模式，仅保留最优模型 trial...")
+            base_dir = self.opt.args.get("TrialPath", "./outputs")
+            best_trial_name = f"optuna_trial_{best_trial.number}"
+            cleanup_trials(base_dir, best_trial_name)
 
     def get_best_config(self):
         best_trial = self.study.best_trial
@@ -648,18 +679,18 @@ class ExperimentProcessController(object):
                 self.InitControllerStatus()
 
     def ExperimentStart(self):
-        # ✅ 1. 如果是 Optuna 搜索，走 optuna 流程
+        # ✅ 1. 如果使用 Optuna 进行搜索，进行 Optuna 优化流程
         if self.search == 'optuna':
             print("使用 Optuna 进行超参数搜索")
             self.configcontroller.optimize(n_trials=30)
-            # ✅ 获取最优配置和指标
-            best_config = self.configcontroller.get_best_config()
 
+            # ✅ 获取最优的超参数配置和评分
+            best_config, best_score = self.configcontroller.get_best_config()
             print("最优超参数配置：")
             print(best_config)
             print("对应的最优评估指标：", best_score)
 
-            # ✅ 保存最优结果
+            # ✅ 保存最优的结果
             save_path = os.path.join(best_config.get('TrialPath', './outputs'), 'optuna_best_result.json')
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
             with open(save_path, 'w', encoding='utf-8') as f:
@@ -668,13 +699,21 @@ class ExperimentProcessController(object):
                     "最优评估指标": best_score
                 }, f, indent=2, ensure_ascii=False)
 
-            # ✅ 可选：用最优参数再训练一次模型（建议）
-            best_opt = Configs(best_config)
+            # ✅ 合并缺失的参数并重新训练
+            merged_config = self.configcontroller.opt.args.copy()
+            merged_config.update(best_config)
+
+            best_opt = Configs(merged_config)
+
+            # ✅ 加这一行来指定加载已有模型参数
+            best_opt.set_args("ResumeFrom", "best_model.pth")
+
             trainer = RelationTrainer(best_opt)
             trainer.TrainOneOpt()
+
             return
 
-        # ✅ 2. 否则执行原有贪心策略
+        # ✅ 2. 否则执行现有的贪心策略
         end_flag = False
 
         while not end_flag:
@@ -684,19 +723,20 @@ class ExperimentProcessController(object):
                 self.CheckDirectories(opt, self.i)
                 opt.set_args('split_seed', self.i + opt.args['SplitSeedBias'])
 
-                print("The parameters of the current exp are: ")
+                print("当前实验的参数为：")
                 print(opt.args)
 
                 trainer = RelationTrainer(opt)
                 ckpt, value = trainer.TrainOneOpt()
 
-                print(f"cur_opt_cur_seed_value: {value}")
+                print(f"当前种子实验值: {value}")
 
                 self.cur_opt_results.append(value)
                 self.i += 1
                 self.SaveStatusToFile()
                 self.configcontroller.SaveStatusToFile()
 
+            # 聚合实验结果
             cur_opt_value = np.mean(self.cur_opt_results)
             self.opt_results.append(cur_opt_value)
             self.cur_opt_results = []
@@ -709,14 +749,15 @@ class ExperimentProcessController(object):
             if self.ExpOptions['SeedSearch']:
                 end_flag = True
 
+        # 最终结果
         print("Experiment Finished")
-        print("The best averaged value of all opts is: ")
+        print("所有优化参数的最佳平均值是：")
         if opt.args['ClassNum'] == 1:
             best_opt_result = min(self.opt_results)
         else:
             best_opt_result = max(self.opt_results)
         print(best_opt_result)
-        print("And the corresponding exp num is: ")
+        print("对应的实验编号是：")
         print(self.opt_results.index(best_opt_result))
 
     def CheckDirectories(self, opt, i):
@@ -757,7 +798,6 @@ class ExperimentProcessController(object):
 
 
 class RelationTrainer(object):
-
     def __init__(self, opt, KFold=False, no_eval_flag=False):
         super(RelationTrainer, self).__init__()
         self.opt = opt
@@ -779,9 +819,16 @@ class RelationTrainer(object):
         self.BuildDataset()
 
         self.net = self.BuildModel()
-        self.BuildIniter()
-        if self.initer:
-            self.WeightInit()
+
+        # ✅ 加入可选模型加载（比如从 best_model.pth 继续训练）
+        resume_path = self.opt.args.get("ResumeFrom", None)
+        if resume_path and os.path.exists(resume_path):
+            print(f"🔁 正在从 {resume_path} 加载模型参数继续训练...")
+            self.net.load_state_dict(torch.load(resume_path, map_location=self.device))
+        else:
+            self.BuildIniter()
+            if self.initer:
+                self.WeightInit()
 
         self.BuildOptimizer()
 
@@ -917,9 +964,7 @@ class RelationTrainer(object):
                 self.criterion = [nn.CrossEntropyLoss().\
                                       to(self.device) for i in range(self.opt.args['TaskNum'])]
         elif self.opt.args['ClassNum'] == 1:
-            self.criterion = [nn.MSELoss().\
-                                  to(self.device) for i in range(self.opt.args['TaskNum'])]
-
+            self.criterion = [nn.SmoothL1Loss().to(self.device) for i in range(self.opt.args['TaskNum'])]
 
     def SaveModelCkpt(self, ckpt_idx):
 
@@ -998,7 +1043,7 @@ class RelationTrainer(object):
             print('Epoch: ', epoch)
 
             if stop_flag:
-                MaxResult = self.earlystopcontroller.MaxResult
+                MaxResult = {self.opt.args["MainMetric"]: self.earlystopcontroller.MaxResult}
                 BestModel = self.earlystopcontroller.MaxResultModelIdx
                 print("Early Stop")
                 print("The Best Result is: ")
@@ -1026,7 +1071,7 @@ class RelationTrainer(object):
             self.SaveTrainerStatus(epoch)
             epoch += 1
 
-        MaxResult = self.earlystopcontroller.MaxResult
+        MaxResult = {self.opt.args["MainMetric"]: self.earlystopcontroller.MaxResult}
         BestModel = self.earlystopcontroller.MaxResultModelIdx
         print("Stop Training.")
         print("The Best Result is: ")
@@ -1049,47 +1094,49 @@ class RelationTrainer(object):
         return BestModel, MaxResult
 
     ################################################################################################################
-
+    # 添加稳定训练防止 NaN 的关键保护措施2025/4/1
     def TrainOneEpoch(self, model, loader, train_idx, valid_idx, test_idx, optimizer, criterion, evaluator):
-
+        with torch.no_grad():
+            print(f"🧪 epoch {self.StartEpoch} 首个参数: {list(model.parameters())[0].view(-1)[0].item()}")
         for data in loader:
             data.to(self.device)
-            # print(data)
-            # print("Here C")
             Label = data.y
             Label = Label.to(self.device)
-            # Label = Label.squeeze(-1)       # [batch, task]
             Label = Label.t()               # [task, batch]
 
+           #模型会换名字
             if self.opt.args['Model'] == 'GslMol':
                 output, adj, init_node_vec = model(data)
             else:
                 output = model(data)
 
             loss = self.CalculateLoss(output[train_idx], Label[:, train_idx], criterion)
-            if self.opt.args['adj_loss']:
+            # ✅ 如果启用 adj_loss，计算它
+            if self.opt.args.get('adj_loss', False):
                 adj_loss_weight = self.opt.get_args('adj_loss_weight', 0.1)
                 adj_loss = self.CalculateAdjLoss(adj, Label, train_idx) * self.opt.get_args('adj_loss_scale', 1)
                 loss = adj_loss_weight * adj_loss + (1 - adj_loss_weight) * loss
-            # if 'graph_learn_regularization' in self.opt.args.keys() and self.opt.args['graph_learn_regularization']:
-            #     loss += self.add_graph_reg_loss(raw_adj, init_node_vec)
 
-            loss.backward()
+            # ✅ 检查 loss 是否为 NaN
+            if torch.isnan(loss) or torch.isinf(loss):
+                print("⚠️ 检测到 NaN 或 Inf 的 loss，跳过当前 batch。")
+                continue
 
-        # update the parameters
-            optimizer.step()
+            # ✅ 梯度清零、反向传播和梯度裁剪（可选）
             optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # 推荐加，防止爆梯度
+            optimizer.step()
 
-        # Print the loss
+        # 打印loss
             if self.log_loss:
                 self.train_loss_list.append(loss.item())
-
+        # 学习率调度器步进
         self.lr_sch.step()
 
     def CalculateLoss(self, output, Label, criterion):
         loss = 0.0
-        # print(f"output size: {output.size()}")
-        # print(f"label size: {Label.size()}")
+
         if self.opt.args['ClassNum'] != 1:
             for i in range(self.opt.args['TaskNum']):
                 cur_task_output = output[:, i * self.opt.args['ClassNum']: (i + 1) * self.opt.args['ClassNum']]     # select the output of the current task i
@@ -1202,6 +1249,7 @@ class RelationTrainer(object):
                 test_result_rmse = testresult['RMSE']
             else:
                 test_result_rmse = None
+            print(f"📊 Epoch {epoch}: Valid RMSE = {valid_result_rmse:.4f}, Test RMSE = {test_result_rmse:.4f}")
 
             if valid_result_rmse < self.BestValidRMSE:
                 self.BestValidRMSE = valid_result_rmse
@@ -1291,10 +1339,10 @@ class RelationTrainer(object):
 
     def RemoveOtherCkpts(self, bestmodel):
         if bestmodel is None:
-            print("✅ 模型将由独立评估器处理，无需删除。")
+
             return 0
 
-        print("🧹 正在删除其余模型文件...")
+
         model_dir = os.path.join(self.opt.args['SaveDir'], 'model')
         if os.path.exists(model_dir):
             filenames = os.listdir(model_dir)
@@ -1304,7 +1352,7 @@ class RelationTrainer(object):
         else:
             print(f"⚠️ 模型文件夹不存在：{model_dir}")
 
-        print("🧹 正在删除其余结果文件...")
+
         result_dir = os.path.join(self.opt.args['SaveDir'], 'results')
         if os.path.exists(result_dir):
             filenames = os.listdir(result_dir)
@@ -1314,7 +1362,7 @@ class RelationTrainer(object):
         else:
             print(f"⚠️ 结果文件夹不存在：{result_dir}")
 
-        print("🧹 正在删除其余训练状态文件...")
+
         status_dir = os.path.join(self.opt.args['SaveDir'], 'TrainerStatus')
         if os.path.exists(status_dir):
             filenames = os.listdir(status_dir)

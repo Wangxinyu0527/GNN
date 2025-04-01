@@ -8,6 +8,8 @@ ExpOptions = {
 
 BasicParamList = {
     'ExpName': 'ESOL',
+    "CleanOtherTrials": True,#是否清理其他文件夹
+
     'MainMetric': 'RMSE',
     'DataPath': './Datasets/DrugData/ESOL_SMILESValue.txt',
     'RootPath': os.path.abspath(os.path.join('outputs')),
@@ -17,7 +19,7 @@ BasicParamList = {
     'OutputSize': 1,#回归任务只预测一个连续值
     'Feature': 'PyGGIN',
     'Model': 'GslMol',
-    'log_loss': False,
+    'log_loss': True,
     'OnlySpecific': False,
     'Weight': True,
     'PyG': True,
@@ -30,8 +32,8 @@ BasicParamList = {
     'SplitRate': [0.8, 0.1],
     'Splitter': 'Scaffold',
     'MaxEpoch': 300,
-    'LowerThanMaxLimit': 50,
-    'DecreasingLimit': 30,
+    'LowerThanMaxLimit': 30,
+    'DecreasingLimit': 10,
 
     'Scheduler': 'PolynomialDecayLR',#学习率调度
 
