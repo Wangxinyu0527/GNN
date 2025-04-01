@@ -1,7 +1,5 @@
 from TrainingFramework.Metrics import *
 import time
-import os
-import pickle
 import numpy as np
 
 
@@ -60,21 +58,6 @@ class GslMolEvaluator(object):
 
         if self.opt.args['ExpName'] in ['QM9', 'QM7']:
             All_label, All_answer = self.DeNormalized(All_label, All_answer)
-        # ✅ 如果是回归任务 ClassNum == 1，则尝试反标准化
-        if self.opt.args['ClassNum'] == 1:
-            scaler_path = os.path.join(self.opt.args['SaveDir'], 'scaler.pkl')
-            if os.path.exists(scaler_path):
-                with open(scaler_path, 'rb') as f:
-                    scaler = pickle.load(f)
-
-                for i in range(len(All_label)):
-                    label_np = np.array(All_label[i]).reshape(-1, 1)
-                    answer_np = np.array(All_answer[i]).reshape(-1, 1)
-                    All_label[i] = scaler.inverse_transform(label_np).flatten().tolist()
-                    All_answer[i] = scaler.inverse_transform(answer_np).flatten().tolist()
-                print("✅ 已完成反标准化处理")
-            else:
-                print("⚠️ 未找到 scaler.pkl，跳过反标准化")
 
         scores = {}
         All_metrics = []
@@ -111,6 +94,5 @@ class GslMolEvaluator(object):
         Labels = Labels * np.sqrt(z_var) + z_mean
         Scores = Scores * np.sqrt(z_var) + z_mean
         return Labels.T.tolist(), Scores.T.tolist()
-
 
 

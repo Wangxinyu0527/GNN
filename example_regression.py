@@ -2,7 +2,7 @@ from TrainingFramework.ProcessControllers import *
 
 ExpOptions = {
     'Search': 'greedy',
-    'SeedPerOpt': 3,
+    'SeedPerOpt': 1,#以前是3
     'SeedSearch': False,
 }
 
@@ -29,7 +29,7 @@ BasicParamList = {
     'TestBalance': False,
     'SplitRate': [0.8, 0.1],
     'Splitter': 'Scaffold',
-    'MaxEpoch': 50,
+    'MaxEpoch': 5,#以前是300
     'LowerThanMaxLimit': 50,
     'DecreasingLimit': 30,
 
@@ -37,7 +37,7 @@ BasicParamList = {
 
     # Params for PolynomialDecayLR only
     'WarmupEpoch': 2,
-    'LRMaxEpoch': 50,
+    'LRMaxEpoch': 5, #需要修改
     'EndLR':1e-9,
     'Power':1.0,
     # Params for StepLR only

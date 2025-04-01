@@ -58,4 +58,3 @@ class PyGGIN(nn.Module):
         if not self.FeatureExtractor:
             x = self.TaskLayer(x)
         return x
-

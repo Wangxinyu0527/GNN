@@ -1,25 +1,23 @@
 from TrainingFramework.ProcessControllers import *
 
 ExpOptions = {
-    'Search': 'optuna',  # 使用 Optuna 进行超参数搜索
-    'SeedPerOpt': 3,
+    'Search': 'greedy',
+    'SeedPerOpt': 1,
     'SeedSearch': False,
 }
 
 BasicParamList = {
     'ExpName': 'ESOL',
-    "CleanOtherTrials": True,#是否清理其他文件夹
-
     'MainMetric': 'RMSE',
     'DataPath': './Datasets/DrugData/ESOL_SMILESValue.txt',
     'RootPath': os.path.abspath(os.path.join('outputs')),
     'CUDA_VISIBLE_DEVICES': '0',
     'TaskNum': 1,
-    'ClassNum': 1,#回归任务
+    'ClassNum': 1,
     'OutputSize': 1,#回归任务只预测一个连续值
     'Feature': 'PyGGIN',
     'Model': 'GslMol',
-    'log_loss': True,
+    'log_loss': False,
     'OnlySpecific': False,
     'Weight': True,
     'PyG': True,
@@ -31,15 +29,15 @@ BasicParamList = {
     'TestBalance': False,
     'SplitRate': [0.8, 0.1],
     'Splitter': 'Scaffold',
-    'MaxEpoch': 300,
-    'LowerThanMaxLimit': 30,
-    'DecreasingLimit': 10,
+    'MaxEpoch': 5,#以前是300
+    'LowerThanMaxLimit': 50,
+    'DecreasingLimit': 30,
 
-    'Scheduler': 'PolynomialDecayLR',#学习率调度
+    'Scheduler': 'PolynomialDecayLR',
 
-    # 学习率相关参数
+    # Params for PolynomialDecayLR only
     'WarmupEpoch': 2,
-    'LRMaxEpoch': 300,
+    'LRMaxEpoch': 5, #需要修改
     'EndLR':1e-9,
     'Power':1.0,
     # Params for StepLR only
@@ -61,7 +59,7 @@ BasicParamList = {
 
     #####################################
 
-    # 模型相关的参数
+    # Params for GslMol only
     'init_adj_epsilon': 0.2,
     'radius': 2,
     'nBits': 1024,
@@ -115,46 +113,9 @@ BasicParamList = {
     'DNNLayers': [],
 
 }
-#可调整的超参数列表
 AdjustableParamList = {
-    # 'FPSize' : [128, 32, 64, 150, 200],
-    # 'GINLayers': [2,5,3,4],
-    # 'GINInputSize': [32,128,64,256],
-    # 'GINHiddenSize': [32,64,128,256],
-    # 'GINTrainEps':[True, False],
-    # 'GINReadout': ['Max', 'Add', 'Mean'],
-    # 'DropRate' : [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
-    #
-    # 'map_dim': [32, 64, 128],
-    # 'map_layer': [0, 2, 1,  3],
-    # 'map_dropout': [0.1, 0.2, 0.3, 0],
-    #
-    # # 'init_adj_epsilon': [0.7, 0.2, 0.3, 0.0, 0.1, 0.5],
-    # 'rel_layer': [4,3, 1, 2, 5],
-    # 'rel_hidden_dim': [256, 128,32, 64],
-    # 'rel_gnn_layer': [2, 3],
-    # 'rel_epsilon': [0.0, 0.1, 0.2, 0.5],
-    # 'rel_num_pers': [8, 1, 2, 4,16],
-    # 'rel_res': [1.0, 0.2, 0, 0.1,  0.5],
-    # # 'rel_metric': ['weighted_cosine', 'attention', 'gat_attention', 'kernel', 'transformer', 'cosine'],
-    # 'rel_dropout': [0.0, 0.1, 0.2, 0.4, 0.6],
-    # 'rel_dropout2': [0.1, 0.0, 0.2, 0.4, 0.6],
-    # 'graph_skip_conn': [0.8, 0.7, 0.9, 0.5, 0.3, 0.1],
-    # 'update_adj_ratio': [0.1, 0.3, 0.6, 0.8, 1.0],
-    #
-    # 'adj_loss_weight': [0.5, 0.3, 0.1, 0.7, 0.9],
-    #
-    # 'lr': [2.5, 3.5, 3, 2, 4],
-    # 'WeightDecay': [5, 4, 4.5, 3.5, 3],
-    #
-    # 'TorchSeed': [42, 8, 1234, 3407, 114514, 147258, 0, 1, 2],
-    "rel_hidden_dim": [64, 128],
-    "rel_dropout": [0.0, 0.05, 0.1, 0.2, 0.3],
-    "lr": [0.0001, 0.0003, 0.001, 0.003, 0.005],
-    "WeightDecay": [3.5, 4.0, 4.5, 5.0, 5.5],
-    "GINLayers": [2, 3, 4],
-    "map_dim": [64, 128],
-    "map_dropout": [0.0, 0.05, 0.1, 0.2],
+    'DropRate': [0.1],
+    'lr': [3.0]
 
 }
 SpecificParamList = {

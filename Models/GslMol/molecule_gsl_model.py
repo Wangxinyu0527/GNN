@@ -114,4 +114,3 @@ class MolRelationNet(nn.Module):
             all_task_pred = torch.cat(all_task_pred, dim=-1)
 
             return all_task_pred, all_task_adj, None
-
